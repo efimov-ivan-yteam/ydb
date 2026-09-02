@@ -57,9 +57,8 @@ TStorageConfigPtr MakeStorageConfig()
     return std::make_shared<TStorageConfig>(rawConfig);
 }
 
-const auto DefaultInitialStates = TVector(
-    DirectBlockGroupHostCount,
-    std::make_pair(EHostState::Online, false));
+const auto DefaultInitialStates =
+    TVector(DirectBlockGroupHostCount, EHostHealth::Online);
 
 }   // namespace
 
@@ -935,39 +934,38 @@ Y_UNIT_TEST_SUITE(TOracle)
 
     Y_UNIT_TEST(ConstructorSetsInitialStates)
     {
-        const TVector initialStates{
-            std::pair{EHostState::Online, false},
-            std::pair{EHostState::TemporaryOffline, false},
-            std::pair{EHostState::Offline, false},
-            std::pair{EHostState::Online, false},
-            std::pair{EHostState::Offline, true},
-        };
-
-        const TVector expectedHealth{
+        const TVector initialHealth{
             EHostHealth::Online,
             EHostHealth::TemporaryOffline,
             EHostHealth::Offline,
             EHostHealth::Online,
             EHostHealth::Broken,
         };
+        const TVector expectedStates{
+            EHostState::Online,
+            EHostState::TemporaryOffline,
+            EHostState::Offline,
+            EHostState::Online,
+            EHostState::Offline,
+        };
 
         auto config = MakeStorageConfig();
 
         THostStateControllerMock hostStateController;
-        TOracle oracle(config, &hostStateController, initialStates);
+        TOracle oracle(config, &hostStateController, initialHealth);
         auto now = TInstant::Now();
 
         auto stats = oracle.BuildHostStats(now);
 
-        UNIT_ASSERT_VALUES_EQUAL(initialStates.size(), stats.size());
+        UNIT_ASSERT_VALUES_EQUAL(initialHealth.size(), stats.size());
 
-        for (size_t i = 0; i < initialStates.size(); ++i) {
+        for (size_t i = 0; i < initialHealth.size(); ++i) {
             UNIT_ASSERT_VALUES_EQUAL_C(
-                initialStates[i].first,
+                expectedStates[i],
                 stats[i].State,
                 "host #" << i);
             UNIT_ASSERT_VALUES_EQUAL_C(
-                expectedHealth[i],
+                initialHealth[i],
                 stats[i].Health,
                 "host #" << i);
         }

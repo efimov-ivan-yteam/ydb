@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+ya dump compilation-database --force-build-depends --dont-strip-compiler-path --output-file ydb/core/nbs/workspace/compile_commands.json \
+library/cpp        \
+util               \
+ydb/apps                  \
+ydb/core                  \
+ydb/library               \
+ydb/public                \
+ydb/services              \
+ydb/tests
+
+====
+
+#!/usr/bin/env bash
+
+ya make --replace-result --add-protobuf-result ydb/apps/ydbd -o ydb/core/nbs/workspace/.build
+
+====
+
+#!/usr/bin/env bash
+
+echo "$@" >> /home/efimov-ivan/repos/ydb/yafmt.log
+
+ya tool clang-format $@

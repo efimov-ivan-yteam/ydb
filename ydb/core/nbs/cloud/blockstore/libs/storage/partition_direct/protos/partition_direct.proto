@@ -12,8 +12,6 @@ message TDirectBlockGroupConnections {
     message TConnection {
         NKikimrBlobStorage.NDDisk.TDDiskId DDiskId = 1;
         NKikimrBlobStorage.NDDisk.TDDiskId PersistentBufferDDiskId = 2;
-        EHostState State = 3;
-        bool IsBroken = 4; // Meaningful iff State == EHostState::Offline
     }
     repeated TConnection Connections = 1;
 }

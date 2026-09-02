@@ -3,9 +3,20 @@ syntax = "proto3";
 package NYdb.NBS.PartitionDirect.NProto;
 option java_package = "ru.yandex.ydb.core.nbs.partition_direct.proto";
 
-enum EHostState
+enum EHostHealth
 {
     Online = 0;
     TemporaryOffline = 1;
     Offline = 2;
+    Broken = 3;
 };
+
+message THostState
+{
+    EHostHealth Health = 1;
+}
+
+message TDirectBlockGroupState
+{
+    repeated THostState Hosts = 1;
+}

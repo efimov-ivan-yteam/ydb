@@ -44,6 +44,8 @@ struct TTxPartition
         ::NYdb::NBS::PartitionDirect::NProto::TDirectBlockGroupsConnections;
     using TAddHostInProgress =
         ::NYdb::NBS::PartitionDirect::NProto::TAddHostInProgress;
+    using TDirectBlockGroupState =
+        ::NYdb::NBS::PartitionDirect::NProto::TDirectBlockGroupState;
 
     //
     // InitSchema
@@ -189,6 +191,9 @@ struct TTxPartition
         const size_t DirectBlockGroupId;
         const THostIndex NewHostIndex;
 
+        // Filled by Prepare.
+        TMaybe<TDirectBlockGroupState> DirectBlockGroupState;
+
         TAddHostToDBG(
             TDirectBlockGroupsConnections directBlockGroupsConnections,
             size_t directBlockGroupId,
@@ -200,7 +205,9 @@ struct TTxPartition
         {}
 
         void Clear()
-        {}
+        {
+            DirectBlockGroupState.Clear();
+        }
     };
 
     //

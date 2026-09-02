@@ -205,7 +205,7 @@ TDirectBlockGroup::TDirectBlockGroup(
     size_t directBlockGroupIndex,
     const TVector<NBsController::TDDiskId>& ddisksIds,
     const TVector<NBsController::TDDiskId>& pbufferIds,
-    const TVector<std::pair<EHostState, bool>>& initialHostStates,
+    const TVector<EHostHealth>& initialHostsHealth,
     NTransport::TStorageTransportPtr storageTransport,
     NMonitoring::TDynamicCounterPtr counters)
     : ActorSystem(actorSystem)
@@ -222,7 +222,7 @@ TDirectBlockGroup::TDirectBlockGroup(
               .TabletId = diskDescription.TabletId,
               .Generation = diskDescription.Generation,
               .DBGIndex = DirectBlockGroupIndex})
-    , Oracle(StorageConfig, this, initialHostStates)
+    , Oracle(StorageConfig, this, initialHostsHealth)
     , Counters(std::move(counters))
 {
     Y_ASSERT(pbufferIds.size() == ddisksIds.size());
@@ -1438,6 +1438,8 @@ void TDirectBlockGroup::SetHostState(
         PrintHostAndNode(hostIndex).c_str(),
         ToString(oldState).c_str(),
         ToString(newState).c_str());
+
+    // PersistHostState(dbgId, hostIndex)
 
     for (const auto& weakVChunk: VChunks) {
         if (auto vChunk = weakVChunk.lock()) {

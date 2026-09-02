@@ -54,7 +54,7 @@ public:
         size_t directBlockGroupIndex,
         const TVector<NKikimr::NBsController::TDDiskId>& ddisksIds,
         const TVector<NKikimr::NBsController::TDDiskId>& pbufferIds,
-        const TVector<std::pair<EHostState, bool>>& initialHostStates,
+        const TVector<EHostHealth>& initialHostsHealth,
         NTransport::TStorageTransportPtr storageTransport,
         NMonitoring::TDynamicCounterPtr counters);
 

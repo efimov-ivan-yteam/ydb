@@ -31,17 +31,19 @@ namespace NYdb::NBS::NBlockStore::NStorage::NPartitionDirect {
 
 namespace {
 
-EHostState ProtoToHostState(const PartitionDirect::NProto::EHostState state)
+EHostHealth ProtoToHostHealth(const PartitionDirect::NProto::EHostHealth health)
 {
-    switch (state) {
-        case PartitionDirect::NProto::Online:
-            return EHostState::Online;
-        case PartitionDirect::NProto::TemporaryOffline:
-            return EHostState::TemporaryOffline;
-        case PartitionDirect::NProto::Offline:
-            return EHostState::Offline;
+    switch (health) {
+        case PartitionDirect::NProto::EHostHealth::Online:
+            return EHostHealth::Online;
+        case PartitionDirect::NProto::EHostHealth::TemporaryOffline:
+            return EHostHealth::TemporaryOffline;
+        case PartitionDirect::NProto::EHostHealth::Offline:
+            return EHostHealth::Offline;
+        case PartitionDirect::NProto::EHostHealth::Broken:
+            return EHostHealth::Broken;
         default:
-            Y_ABORT("unexpected proto host state: %d", state);
+            Y_ABORT("unexpected proto host health: %d", health);
     }
 }
 
@@ -345,10 +347,10 @@ TVector<IDirectBlockGroupPtr> TPartitionActor::CreateDirectBlockGroups(
             persistentBufferDDiskIds.push_back(NBsController::TDDiskId(
                 connection.GetPersistentBufferDDiskId()));
         }
-        TVector<std::pair<EHostState, bool>> initialHostStates;
+        TVector<EHostHealth> initialHostsHealth;
         for (const auto& connection: conn.GetConnections()) {
             initialHostStates.emplace_back(
-                ProtoToHostState(connection.GetState()),
+                ProtoToHostHealth(connection.GetState()),
                 connection.GetIsBroken());
         }
 

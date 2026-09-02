@@ -100,8 +100,6 @@ NProto::TError AddConnection(
         result->MutableDirectBlockGroupConnections(dbgId)->AddConnections();
     connection->MutableDDiskId()->CopyFrom(newDDiskId);
     connection->MutablePersistentBufferDDiskId()->CopyFrom(newPBufferId);
-    connection->SetState(PartitionDirect::NProto::EHostState::Online);
-    connection->SetIsBroken(false);
 
     return {};
 }
@@ -155,10 +153,12 @@ bool TPartitionActor::PrepareAddHostToDBG(
     TTxPartition::TAddHostToDBG& args)
 {
     Y_UNUSED(ctx);
-    Y_UNUSED(tx);
-    Y_UNUSED(args);
 
-    return true;
+    TPartitionDatabase db(tx.DB);
+
+    return db.ReadDirectBlockGroupState(
+        args.DirectBlockGroupId,
+        args.DirectBlockGroupState);
 }
 
 void TPartitionActor::ExecuteAddHostToDBG(
@@ -173,6 +173,20 @@ void TPartitionActor::ExecuteAddHostToDBG(
     // together: recovery never sees a half-applied add.
     db.StoreDirectBlockGroupsConnections(args.DirectBlockGroupsConnections);
     db.ClearAddHostInProgress();
+
+    Y_ASSERT(args.NewHostIndex <= args.DirectBlockGroupState->HostsSize());
+    if (args.NewHostIndex >= args.DirectBlockGroupState->HostsSize()) {
+        args.DirectBlockGroupState->AddHosts();
+    } else {
+        Y_ABORT_UNLESS(
+            args.DirectBlockGroupState.Defined(),
+            "record must exist for an existing host id");
+    }
+    args.DirectBlockGroupState->MutableHosts(args.DirectBlockGroupId)
+        ->SetHealth(PartitionDirect::NProto::EHostHealth::Online);
+    db.StoreDirectBlockGroupState(
+        args.DirectBlockGroupId,
+        args.DirectBlockGroupState.GetRef());
 }
 
 void TPartitionActor::CompleteAddHostToDBG(

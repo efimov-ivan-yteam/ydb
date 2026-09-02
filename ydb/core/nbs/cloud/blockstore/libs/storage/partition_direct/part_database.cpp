@@ -254,6 +254,35 @@ void TPartitionDatabase::ClearAddHostInProgress()
     Table<TTable>().Key(1).UpdateToNull<TTable::AddHostInProgress>();
 }
 
+bool TPartitionDatabase::ReadDirectBlockGroupState(
+    const ui64 dbgId,
+    TMaybe<TDirectBlockGroupState>& directBlockGroupState)
+{
+    using TTable = TPartitionSchema::DirectBlockGroupStates;
+
+    auto it = Table<TTable>().Key(dbgId).Select<TTable::State>();
+
+    if (!it.IsReady()) {
+        return false;
+    }
+
+    if (it.IsValid() && it.HaveValue<TTable::State>()) {
+        directBlockGroupState = it.GetValue<TTable::State>();
+    }
+
+    return true;
+}
+
+void TPartitionDatabase::StoreDirectBlockGroupState(
+    const ui64 dbgId,
+    const TDirectBlockGroupState& directBlockGroupState)
+{
+    using TTable = TPartitionSchema::DirectBlockGroupStates;
+
+    Table<TTable>().Key(dbgId).Update(
+        NKikimr::NIceDb::TUpdate<TTable::State>(directBlockGroupState));
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 }   // namespace NYdb::NBS::NBlockStore::NStorage::NPartitionDirect

@@ -14,6 +14,8 @@ using TDirectBlockGroupsConnections =
     ::NYdb::NBS::PartitionDirect::NProto::TDirectBlockGroupsConnections;
 using TAddHostInProgress =
     ::NYdb::NBS::PartitionDirect::NProto::TAddHostInProgress;
+using TDirectBlockGroupState =
+    ::NYdb::NBS::PartitionDirect::NProto::TDirectBlockGroupState;
 
 using NYdb::NBS::NBlockStore::NStorage::TTestExecutor;
 
@@ -503,6 +505,86 @@ Y_UNIT_TEST_SUITE(TPartitionDatabaseTest)
                 UNIT_ASSERT_VALUES_EQUAL(
                     updated.SerializeAsString(),
                     state.SerializeAsString());
+            });
+    }
+
+    Y_UNIT_TEST(ShouldReadAndStoreDirectBlockGroupState)
+    {
+        TTestExecutor executor;
+
+        const auto getHostHealth = [](ui64 dbgIndex, ui64 hostIndex)
+        {
+            return (dbgIndex + hostIndex) % 2
+                       ? PartitionDirect::NProto::EHostHealth::Online
+                       : PartitionDirect::NProto::EHostHealth::Offline;
+        };
+
+        executor.WriteTx(
+            [&](NKikimr::NTable::TDatabase& db)
+            {
+                TPartitionDatabase partitionDb(db);
+                partitionDb.InitSchema();
+            });
+
+        // Absent right after init.
+        executor.ReadTx(
+            [&](NKikimr::NTable::TDatabase& db)
+            {
+                TPartitionDatabase partitionDb(db);
+                for (ui64 dbgIndex = 0; dbgIndex < DirectBlockGroupsCount;
+                     ++dbgIndex)
+                {
+                    TMaybe<TDirectBlockGroupState> loaded;
+                    UNIT_ASSERT_C(
+                        partitionDb.ReadDirectBlockGroupState(dbgIndex, loaded),
+                        "dbgIndex = " << dbgIndex);
+                    UNIT_ASSERT_C(!loaded.Defined(), "dbgIndex = " << dbgIndex);
+                }
+            });
+
+        executor.WriteTx(
+            [&](NKikimr::NTable::TDatabase& db)
+            {
+                TPartitionDatabase partitionDb(db);
+                for (ui64 dbgIndex = 0; dbgIndex < DirectBlockGroupsCount;
+                     ++dbgIndex)
+                {
+                    TDirectBlockGroupState intent;
+                    for (ui64 hostIndex = 0;
+                         hostIndex < DirectBlockGroupHostCount;
+                         ++hostIndex)
+                    {
+                        auto& hostData = *intent.AddHosts();
+                        hostData.SetHealth(getHostHealth(dbgIndex, hostIndex));
+                    }
+                    partitionDb.StoreDirectBlockGroupState(dbgIndex, intent);
+                }
+            });
+
+        // Read back what was stored.
+        executor.ReadTx(
+            [&](NKikimr::NTable::TDatabase& db)
+            {
+                TPartitionDatabase partitionDb(db);
+                for (ui64 dbgIndex = 0; dbgIndex < DirectBlockGroupsCount;
+                     ++dbgIndex)
+                {
+                    TMaybe<TDirectBlockGroupState> loaded;
+                    UNIT_ASSERT_C(
+                        partitionDb.ReadDirectBlockGroupState(dbgIndex, loaded),
+                        "dbgIndex = " << dbgIndex);
+                    UNIT_ASSERT_C(loaded.Defined(), "dbgIndex = " << dbgIndex);
+                    for (ui64 hostIndex = 0;
+                         hostIndex < DirectBlockGroupHostCount;
+                         ++hostIndex)
+                    {
+                        UNIT_ASSERT_VALUES_EQUAL_C(
+                            getHostHealth(dbgIndex, hostIndex),
+                            loaded->GetHosts(hostIndex).GetHealth(),
+                            "dbgIndex = " << dbgIndex
+                                          << ", hostIndex = " << hostIndex);
+                    }
+                }
             });
     }
 }
