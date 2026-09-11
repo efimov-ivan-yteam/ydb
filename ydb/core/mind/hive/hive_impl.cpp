@@ -685,6 +685,31 @@ void THive::BuildCurrentConfig() {
     for (const NKikimrConfig::THiveTabletPreference& tabletPreference : CurrentConfig.GetDefaultTabletPreference()) {
         DefaultDataCentersPreference[tabletPreference.GetType()] = tabletPreference.GetDataCentersPreference();
     }
+    TabletTypeAllowedMetricsDefaults.clear();
+    auto setComputeMetric = [](TVector<i64>& metrics, i64 metricId, auto value) {
+        if (value == NKikimrConfig::THiveConfig::THiveTabletAllowedMetrics::Default) {
+            return;
+        }
+        auto it = Find(metrics, metricId);
+        if (value == NKikimrConfig::THiveConfig::THiveTabletAllowedMetrics::Enabled && it == metrics.end()) {
+            metrics.emplace_back(metricId);
+        } else if (value == NKikimrConfig::THiveConfig::THiveTabletAllowedMetrics::Disabled && it != metrics.end()) {
+            metrics.erase(it);
+        }
+    };
+    for (const auto& allowedMetrics : CurrentConfig.GetDefaultTabletAllowedMetrics()) {
+        for (auto t : allowedMetrics.GetTabletType()) {
+            const TTabletTypes::EType tabletType = TTabletTypes::EType(t);
+            if (!IsValidTabletType(tabletType)) {
+                continue;
+            }
+            TVector<i64> metricIds = GetDefaultAllowedMetricIdsForType(tabletType);
+            setComputeMetric(metricIds, NKikimrTabletBase::TMetrics::kCPUFieldNumber, allowedMetrics.GetCPU());
+            setComputeMetric(metricIds, NKikimrTabletBase::TMetrics::kMemoryFieldNumber, allowedMetrics.GetMemory());
+            setComputeMetric(metricIds, NKikimrTabletBase::TMetrics::kNetworkFieldNumber, allowedMetrics.GetNetwork());
+            TabletTypeAllowedMetricsDefaults.insert_or_assign(tabletType, std::move(metricIds));
+        }
+    }
     BalancerIgnoreTabletTypes.clear();
     for (auto i : CurrentConfig.GetBalancerIgnoreTabletTypes()) {
         const auto type = TTabletTypes::EType(i);
@@ -2416,6 +2441,7 @@ THive::THiveStats THive::GetStats(TIter begin, TIter end) const {
     auto minValuesToBalance = GetMinNodeUsageToBalance();
     maxValues = piecewise_max(maxValues, minValuesToBalance);
     minValues = piecewise_max(minValues, minValuesToBalance);
+    stats.MinResourceNormValues = minValues;
     auto discrepancy = maxValues - minValues;
     auto& counterDiscrepancy = std::get<NMetrics::EResource::Counter>(discrepancy);
     if (counterDiscrepancy * CurrentConfig.GetMaxResourceCounter() <= 1.5) {
@@ -2456,7 +2482,7 @@ void THive::RemoveNodeFromSegments(TNodeInfo* node) {
         NodeSegments.erase(it);
     }
 }
- 
+
 void THive::RemoveNodeFromSegments(TNodeId nodeId) {
     if (auto* node = FindNode(nodeId)) {
         RemoveNodeFromSegments(node);
@@ -2603,9 +2629,26 @@ void THive::Handle(TEvPrivate::TEvProcessTabletBalancer::TPtr&) {
                     balancerType = EBalancerType::Scatter;
                     break;
             }
+            const auto resource = *scatteredResource;
+            const double minScatter = TTabletInfo::ExtractResourceUsage(GetMinScatterToBalance(), resource);
+            if (!(minScatter >= 0.0 && minScatter < 1.0)) {
+                continue;
+            }
+            const double minUsage = TTabletInfo::ExtractResourceUsage(stats.MinResourceNormValues, resource);
+            const double usageThreshold = minUsage / (1.0 - minScatter);
+
             std::vector<TNodeId> nodeIds;
             nodeIds.reserve(stats.Values.size());
-            std::transform(nodes.begin(), nodes.end(), std::back_inserter(nodeIds), [](const TNodeInfo& node) { return node.Id; });
+            for (const auto& node : stats.Values) {
+                const double usage = TTabletInfo::ExtractResourceUsage(node.ResourceNormValues, resource);
+                if (usage > usageThreshold) {
+                    nodeIds.push_back(node.NodeId);
+                }
+            }
+            // An empty filter means all nodes to the balancer.
+            if (nodeIds.empty()) {
+                continue;
+            }
             BLOG_TRACE("Scatter " << stats.ScatterByResource << " over limit "
                        << GetMinScatterToBalance() << " - triggered balancer " << EBalancerTypeName(balancerType));
             settings.emplace(TBalancerSettings{
@@ -2859,12 +2902,15 @@ const TVector<i64>& THive::GetDefaultAllowedMetricIdsForType(TTabletTypes::EType
 }
 
 const TVector<i64>& THive::GetTabletTypeAllowedMetricIds(TTabletTypes::EType type) const {
-    const TVector<i64>& defaultAllowedMetricIds = GetDefaultAllowedMetricIdsForType(type);
     auto it = TabletTypeAllowedMetrics.find(type);
     if (it != TabletTypeAllowedMetrics.end()) {
         return it->second;
     }
-    return defaultAllowedMetricIds;
+    it = TabletTypeAllowedMetricsDefaults.find(type);
+    if (it != TabletTypeAllowedMetricsDefaults.end()) {
+        return it->second;
+    }
+    return GetDefaultAllowedMetricIdsForType(type);
 }
 
 THolder<TGroupFilter> THive::BuildGroupParametersForChannel(const TLeaderTabletInfo& tablet, ui32 channelId) {
