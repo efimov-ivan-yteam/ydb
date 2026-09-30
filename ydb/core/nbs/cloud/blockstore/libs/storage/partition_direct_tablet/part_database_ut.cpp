@@ -2,6 +2,7 @@
 
 #include <ydb/core/nbs/cloud/blockstore/libs/common/constants.h>
 #include <ydb/core/nbs/cloud/blockstore/libs/storage/partition_direct/model/vchunk_config.h>
+#include <ydb/core/nbs/cloud/blockstore/libs/storage/partition_direct/protos/direct_block_group_health.pb.h>
 #include <ydb/core/nbs/cloud/blockstore/libs/storage/testlib/test_executor.h>
 
 #include <library/cpp/testing/unittest/registar.h>
@@ -619,6 +620,75 @@ Y_UNIT_TEST_SUITE(TPartitionDatabaseTest)
                 UNIT_ASSERT_VALUES_EQUAL(
                     needToNotifyDBSC,
                     *readNeedToNotifyDBSC);
+            });
+    }
+
+    Y_UNIT_TEST(ShouldStoreAndReadNeedDirectBlockGroupHealth)
+    {
+        TTestExecutor executor;
+
+        TDirectBlockGroupHealthProto dbgHealth0;
+        dbgHealth0.AddHosts()->SetHealth(
+            PartitionDirect::NProto::EPersistentHostHealth::TemporaryOffline);
+
+        TDirectBlockGroupHealthProto dbgHealth1;
+        dbgHealth1.AddHosts()->SetHealth(
+            PartitionDirect::NProto::EPersistentHostHealth::Broken);
+
+        executor.WriteTx(
+            [&](NKikimr::NTable::TDatabase& db)
+            {
+                TPartitionDatabase partitionDb(db);
+                partitionDb.InitSchema();
+                partitionDb.StoreDirectBlockGroupHealth(0, dbgHealth0);
+                partitionDb.StoreDirectBlockGroupHealth(1, dbgHealth1);
+            });
+
+        executor.ReadTx(
+            [&](NKikimr::NTable::TDatabase& db)
+            {
+                TPartitionDatabase partitionDb(db);
+
+                TMaybe<TDirectBlockGroupHealthProto> readDbgHealth0;
+                UNIT_ASSERT(
+                    partitionDb.ReadDirectBlockGroupHealth(0, readDbgHealth0));
+                UNIT_ASSERT(readDbgHealth0.Defined());
+                UNIT_ASSERT_VALUES_EQUAL(1, readDbgHealth0->HostsSize());
+                UNIT_ASSERT_VALUES_EQUAL(
+                    PartitionDirect::NProto::EPersistentHostHealth::
+                        TemporaryOffline,
+                    readDbgHealth0->GetHosts(0).GetHealth());
+
+                TMaybe<TDirectBlockGroupHealthProto> readDbgHealth1;
+                UNIT_ASSERT(
+                    partitionDb.ReadDirectBlockGroupHealth(1, readDbgHealth1));
+                UNIT_ASSERT(readDbgHealth1.Defined());
+                UNIT_ASSERT_VALUES_EQUAL(1, readDbgHealth1->HostsSize());
+                UNIT_ASSERT_VALUES_EQUAL(
+                    PartitionDirect::NProto::EPersistentHostHealth::Broken,
+                    readDbgHealth1->GetHosts(0).GetHealth());
+            });
+
+        executor.ReadTx(
+            [&](NKikimr::NTable::TDatabase& db)
+            {
+                TPartitionDatabase partitionDb(db);
+
+                TDirectBlockGroupHealthProtos readDbgHealth;
+                UNIT_ASSERT(
+                    partitionDb.ReadAllDirectBlockGroupHealth(readDbgHealth));
+                UNIT_ASSERT_VALUES_EQUAL(2, readDbgHealth.size());
+
+                UNIT_ASSERT_VALUES_EQUAL(1, readDbgHealth[0].HostsSize());
+                UNIT_ASSERT_VALUES_EQUAL(
+                    PartitionDirect::NProto::EPersistentHostHealth::
+                        TemporaryOffline,
+                    readDbgHealth[0].GetHosts(0).GetHealth());
+
+                UNIT_ASSERT_VALUES_EQUAL(1, readDbgHealth[1].HostsSize());
+                UNIT_ASSERT_VALUES_EQUAL(
+                    PartitionDirect::NProto::EPersistentHostHealth::Broken,
+                    readDbgHealth[1].GetHosts(0).GetHealth());
             });
     }
 }

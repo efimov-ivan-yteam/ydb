@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ydb/core/nbs/cloud/blockstore/libs/storage/core/tablet_schema.h>
+#include <ydb/core/nbs/cloud/blockstore/libs/storage/partition_direct/protos/direct_block_group_health.pb.h>
 #include <ydb/core/nbs/cloud/blockstore/libs/storage/partition_direct/protos/dirty_map.pb.h>
 #include <ydb/core/nbs/cloud/blockstore/libs/storage/partition_direct/protos/partition_direct.pb.h>
 
@@ -135,12 +136,29 @@ struct TPartitionSchema: public NKikimr::NIceDb::Schema
         using TColumns = TableColumns<Id, Revision, NeedToNotifyDBSC>;
     };
 
+    struct DirectBlockGroupHealth: public TTableSchema<6>
+    {
+        struct Id: public Column<1, NKikimr::NScheme::NTypeIds::Uint64>
+        {
+        };
+
+        struct Health: public Column<2, NKikimr::NScheme::NTypeIds::String>
+        {
+            using Type =
+                ::NYdb::NBS::PartitionDirect::NProto::TDirectBlockGroupHealth;
+        };
+
+        using TKey = TableKey<Id>;
+        using TColumns = TableColumns<Id, Health>;
+    };
+
     using TTables = SchemaTables<
         TabletInfo,
         VChunkConfigs,
         DirtyMapStates,
         TouchedVChunks,
-        DirectBlockGroupHealthMeta>;
+        DirectBlockGroupHealthMeta,
+        DirectBlockGroupHealth>;
 
     using TSettings =
         SchemaSettings<ExecutorLogBatching<true>, ExecutorLogFlushPeriod<0>>;

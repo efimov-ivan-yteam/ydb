@@ -2,6 +2,8 @@ PROTO_LIBRARY()
 
 EXCLUDE_TAGS(GO_PROTO)
 
+GENERATE_ENUM_SERIALIZATION(direct_block_group_health.pb.h)
+
 SRCS(
     direct_block_group_health.proto
     dirty_map.proto

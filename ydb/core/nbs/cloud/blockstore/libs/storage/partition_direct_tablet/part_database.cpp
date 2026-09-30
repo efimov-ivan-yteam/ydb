@@ -385,4 +385,61 @@ void TPartitionDatabase::StoreNeedToNotifyDBSC(const bool needToNotifyDBSC)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+bool TPartitionDatabase::ReadAllDirectBlockGroupHealth(
+    TDirectBlockGroupHealthProtos& out)
+{
+    using TTable = TPartitionSchema::DirectBlockGroupHealth;
+
+    auto it = Table<TTable>().All().Select<TTable::Id, TTable::Health>();
+
+    if (!it.IsReady()) {
+        return false;
+    }
+
+    while (it.IsValid()) {
+        if (it.HaveValue<TTable::Health>()) {
+            out[it.GetValue<TTable::Id>()] = it.GetValue<TTable::Health>();
+        }
+        if (!it.Next()) {
+            return false;   // not ready
+        }
+    }
+
+    return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+bool TPartitionDatabase::ReadDirectBlockGroupHealth(
+    ui64 dbgId,
+    TMaybe<TDirectBlockGroupHealthProto>& out)
+{
+    using TTable = TPartitionSchema::DirectBlockGroupHealth;
+
+    auto it = Table<TTable>().Key(dbgId).Select<TTable::Health>();
+
+    if (!it.IsReady()) {
+        return false;
+    }
+
+    if (it.IsValid() && it.HaveValue<TTable::Health>()) {
+        out = it.GetValue<TTable::Health>();
+    }
+
+    return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void TPartitionDatabase::StoreDirectBlockGroupHealth(
+    ui64 dbgId,
+    TDirectBlockGroupHealthProto& directBlockGroupHealth)
+{
+    using TTable = TPartitionSchema::DirectBlockGroupHealth;
+
+    Table<TTable>().Key(dbgId).Update<TTable::Health>(directBlockGroupHealth);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 }   // namespace NYdb::NBS::NBlockStore::NStorage::NPartitionDirect

@@ -73,6 +73,14 @@ public:
 
     bool ReadNeedToNotifyDBSC(TMaybe<bool>& needToNotifyDBSC);
     void StoreNeedToNotifyDBSC(bool needToNotifyDBSC);
+
+    bool ReadAllDirectBlockGroupHealth(TDirectBlockGroupHealthProtos& out);
+    bool ReadDirectBlockGroupHealth(
+        ui64 dbgId,
+        TMaybe<TDirectBlockGroupHealthProto>& out);
+    void StoreDirectBlockGroupHealth(
+        ui64 dbgId,
+        TDirectBlockGroupHealthProto& directBlockGroupHealth);
 };
 
 }   // namespace NYdb::NBS::NBlockStore::NStorage::NPartitionDirect
