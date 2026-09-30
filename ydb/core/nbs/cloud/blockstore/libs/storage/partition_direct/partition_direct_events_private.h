@@ -194,14 +194,14 @@ struct TEvPartitionDirectPrivate
         EHostHealth NewHealth;
 
         TEvPersistHostHealth(
-            size_t direct_block_group_id,
-            size_t host_index,
-            EHostHealth old_health,
-            EHostHealth new_health)
-            : DirectBlockGroupId(direct_block_group_id)
-            , HostIndex(host_index)
-            , OldHealth(old_health)
-            , NewHealth(new_health)
+            const size_t directBlockGroupId,
+            const size_t hostIndex,
+            const EHostHealth oldHealth,
+            const EHostHealth newHealth)
+            : DirectBlockGroupId(directBlockGroupId)
+            , HostIndex(hostIndex)
+            , OldHealth(oldHealth)
+            , NewHealth(newHealth)
         {}
     };
 };
