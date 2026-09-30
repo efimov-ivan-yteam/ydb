@@ -3,6 +3,7 @@ PROTO_LIBRARY()
 EXCLUDE_TAGS(GO_PROTO)
 
 SRCS(
+    direct_block_group_health.proto
     dirty_map.proto
     partition_direct.proto
 )

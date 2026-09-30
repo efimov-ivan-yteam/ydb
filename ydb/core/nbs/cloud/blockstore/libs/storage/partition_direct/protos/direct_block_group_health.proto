@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package NYdb.NBS.PartitionDirect.NProto;
+option java_package = "ru.yandex.ydb.core.nbs.partition_direct.proto";
+
+enum EPersistentHostHealth
+{
+    Online = 0;
+    TemporaryOffline = 1;
+    Offline = 2;
+    Broken = 3;
+    Removed = 4;
+};
+
+message THostHealth
+{
+    EPersistentHostHealth Health = 1;
+}
+
+message TDirectBlockGroupHealth
+{
+    repeated THostHealth Hosts = 1;
+}
