@@ -570,6 +570,57 @@ Y_UNIT_TEST_SUITE(TPartitionDatabaseTest)
                     state.SerializeAsString());
             });
     }
+
+    Y_UNIT_TEST(ShouldStoreAndReadHostHealthRevision)
+    {
+        TTestExecutor executor;
+        constexpr ui64 revision = 123;
+
+        executor.WriteTx(
+            [&](NKikimr::NTable::TDatabase& db)
+            {
+                TPartitionDatabase partitionDb(db);
+                partitionDb.InitSchema();
+                partitionDb.StoreHostHealthRevision(revision);
+            });
+
+        executor.ReadTx(
+            [&](NKikimr::NTable::TDatabase& db)
+            {
+                TPartitionDatabase partitionDb(db);
+                TMaybe<ui64> readRevision;
+                UNIT_ASSERT(partitionDb.ReadHostHealthRevision(readRevision));
+                UNIT_ASSERT(readRevision.Defined());
+                UNIT_ASSERT_VALUES_EQUAL(revision, *readRevision);
+            });
+    }
+
+    Y_UNIT_TEST(ShouldStoreAndReadNeedToNotifyDBSC)
+    {
+        TTestExecutor executor;
+        constexpr bool needToNotifyDBSC = true;
+
+        executor.WriteTx(
+            [&](NKikimr::NTable::TDatabase& db)
+            {
+                TPartitionDatabase partitionDb(db);
+                partitionDb.InitSchema();
+                partitionDb.StoreNeedToNotifyDBSC(needToNotifyDBSC);
+            });
+
+        executor.ReadTx(
+            [&](NKikimr::NTable::TDatabase& db)
+            {
+                TPartitionDatabase partitionDb(db);
+                TMaybe<bool> readNeedToNotifyDBSC;
+                UNIT_ASSERT(
+                    partitionDb.ReadNeedToNotifyDBSC(readNeedToNotifyDBSC));
+                UNIT_ASSERT(readNeedToNotifyDBSC.Defined());
+                UNIT_ASSERT_VALUES_EQUAL(
+                    needToNotifyDBSC,
+                    *readNeedToNotifyDBSC);
+            });
+    }
 }
 
 }   // namespace NYdb::NBS::NBlockStore::NStorage::NPartitionDirect

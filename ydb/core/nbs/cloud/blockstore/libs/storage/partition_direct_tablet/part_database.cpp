@@ -328,4 +328,61 @@ void TPartitionDatabase::ClearRemoveHostInProgress()
 
 ////////////////////////////////////////////////////////////////////////////////
 
+bool TPartitionDatabase::ReadHostHealthRevision(
+    TMaybe<ui64>& hostHealthRevision)
+{
+    using TTable = TPartitionSchema::DirectBlockGroupHealthMeta;
+
+    auto it = Table<TTable>().Key(1).Select<TTable::Revision>();
+
+    if (!it.IsReady()) {
+        return false;
+    }
+
+    if (it.IsValid()) {
+        hostHealthRevision = it.GetValue<TTable::Revision>();
+    }
+
+    return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void TPartitionDatabase::StoreHostHealthRevision(const ui64 hostHealthRevision)
+{
+    using TTable = TPartitionSchema::DirectBlockGroupHealthMeta;
+
+    Table<TTable>().Key(1).Update<TTable::Revision>(hostHealthRevision);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+bool TPartitionDatabase::ReadNeedToNotifyDBSC(TMaybe<bool>& needToNotifyDBSC)
+{
+    using TTable = TPartitionSchema::DirectBlockGroupHealthMeta;
+
+    auto it = Table<TTable>().Key(1).Select<TTable::NeedToNotifyDBSC>();
+
+    if (!it.IsReady()) {
+        return false;
+    }
+
+    if (it.IsValid()) {
+        needToNotifyDBSC = it.GetValue<TTable::NeedToNotifyDBSC>();
+    }
+
+    return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void TPartitionDatabase::StoreNeedToNotifyDBSC(const bool needToNotifyDBSC)
+{
+    using TTable = TPartitionSchema::DirectBlockGroupHealthMeta;
+
+    Table<TTable>().Key(1).Update<TTable::NeedToNotifyDBSC>(needToNotifyDBSC);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 }   // namespace NYdb::NBS::NBlockStore::NStorage::NPartitionDirect

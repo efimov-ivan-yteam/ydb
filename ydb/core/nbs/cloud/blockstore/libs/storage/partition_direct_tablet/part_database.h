@@ -67,6 +67,12 @@ public:
     void StoreRemoveHostInProgress(
         const TRemoveHostInProgress& removeHostInProgress);
     void ClearRemoveHostInProgress();
+
+    bool ReadHostHealthRevision(TMaybe<ui64>& hostHealthRevision);
+    void StoreHostHealthRevision(ui64 hostHealthRevision);
+
+    bool ReadNeedToNotifyDBSC(TMaybe<bool>& needToNotifyDBSC);
+    void StoreNeedToNotifyDBSC(bool needToNotifyDBSC);
 };
 
 }   // namespace NYdb::NBS::NBlockStore::NStorage::NPartitionDirect

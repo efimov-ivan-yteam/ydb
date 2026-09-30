@@ -116,8 +116,31 @@ struct TPartitionSchema: public NKikimr::NIceDb::Schema
         using TColumns = TableColumns<VChunkStartIndex, Mask>;
     };
 
-    using TTables =
-        SchemaTables<TabletInfo, VChunkConfigs, DirtyMapStates, TouchedVChunks>;
+    struct DirectBlockGroupHealthMeta: public TTableSchema<5>
+    {
+        struct Id: public Column<1, NKikimr::NScheme::NTypeIds::Uint32>
+        {
+        };
+
+        struct Revision: public Column<2, NKikimr::NScheme::NTypeIds::Uint64>
+        {
+        };
+
+        struct NeedToNotifyDBSC
+            : public Column<3, NKikimr::NScheme::NTypeIds::Bool>
+        {
+        };
+
+        using TKey = TableKey<Id>;
+        using TColumns = TableColumns<Id, Revision, NeedToNotifyDBSC>;
+    };
+
+    using TTables = SchemaTables<
+        TabletInfo,
+        VChunkConfigs,
+        DirtyMapStates,
+        TouchedVChunks,
+        DirectBlockGroupHealthMeta>;
 
     using TSettings =
         SchemaSettings<ExecutorLogBatching<true>, ExecutorLogFlushPeriod<0>>;
