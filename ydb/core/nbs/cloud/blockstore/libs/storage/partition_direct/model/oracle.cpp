@@ -55,13 +55,6 @@ size_t GetAliveHostCount(const TVector<THostState>& hostStates)
         });
 }
 
-// All Online-state healths are persisted as EHostHealth::Online
-EHostHealth ToPersistentHealth(const EHostHealth health)
-{
-    return HealthToState(health) == EHostState::Online ? EHostHealth::Online
-                                                       : health;
-}
-
 }   // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -123,16 +116,11 @@ void TOracle::Think(TInstant now)
 
     for (size_t i = 0; i < newHostsHealths.size(); ++i) {
         if (newHostsHealths[i] != HostsHealths[i]) {
-            const auto oldPersistentHealth =
-                ToPersistentHealth(HostsHealths[i]);
-            const auto newPersistedHealth =
-                ToPersistentHealth(newHostsHealths[i]);
-
-            if (newPersistedHealth != oldPersistentHealth) {
+            if (HostsHealths[i] != newHostsHealths[i]) {
                 HostStateController->PersistHostHealth(
                     i,
-                    oldPersistentHealth,
-                    newPersistedHealth);
+                    HostsHealths[i],
+                    newHostsHealths[i]);
             }
 
             HostsHealths[i] = newHostsHealths[i];
@@ -193,7 +181,7 @@ void TOracle::OnDDiskBroken(THostIndex hostIndex)
     if (HostsHealths[hostIndex] != EHostHealth::Broken) {
         HostStateController->PersistHostHealth(
             hostIndex,
-            ToPersistentHealth(HostsHealths[hostIndex]),
+            HostsHealths[hostIndex],
             EHostHealth::Broken);
     }
 

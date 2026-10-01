@@ -71,6 +71,10 @@ private:
 
     TDirectBlockGroupsConnections DirectBlockGroupsConnections;
 
+    TDirectBlockGroupHealthProtos DirectBlockGroupHealth;
+    ui64 HostHealthRevision = 0;
+    bool NeedToNotifyDBSC = false;
+
     struct TDeleteWaiter
     {
         NActors::TActorId Sender;

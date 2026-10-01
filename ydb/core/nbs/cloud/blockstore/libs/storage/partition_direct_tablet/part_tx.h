@@ -6,6 +6,7 @@
 #include <ydb/core/nbs/cloud/blockstore/libs/storage/partition_direct/protos/dirty_map.pb.h>
 #include <ydb/core/nbs/cloud/blockstore/libs/storage/partition_direct/protos/partition_direct.pb.h>
 #include <ydb/core/nbs/cloud/blockstore/libs/storage/partition_direct/protos/public.h>
+#include <ydb/core/nbs/cloud/blockstore/libs/storage/partition_direct_tablet/host_health.h>
 #include <ydb/core/nbs/cloud/blockstore/libs/storage/partition_direct_tablet/model/touched_vchunks.h>
 
 #include <ydb/core/protos/blobstorage_ddisk.pb.h>
@@ -34,7 +35,8 @@ namespace NYdb::NBS::NBlockStore::NStorage::NPartitionDirect {
     xxx(AddHostToDBG, __VA_ARGS__)                                             \
     xxx(StartRemoveHost, __VA_ARGS__)                                          \
     xxx(CommitRemoveHost, __VA_ARGS__)                                         \
-    xxx(Monitoring, __VA_ARGS__)
+    xxx(Monitoring, __VA_ARGS__)                                               \
+    xxx(PersistHostHealth, __VA_ARGS__)
 
 // BLOCKSTORE_PARTITION_TRANSACTIONS
 
@@ -265,6 +267,35 @@ struct TTxPartition
             VolumeConfig.Clear();
             DirectBlockGroupsConnections.Clear();
             AddHostInProgress.Clear();
+        }
+    };
+
+    //
+    // PersistHostHealth
+    //
+    struct TPersistHostHealth
+    {
+        ui64 DirectBlockGroupId;
+        ui32 HostId;
+        EPersistentHostHealth NewHealth;
+
+        // Filled by Prepare.
+        TMaybe<ui64> Revision;
+        TMaybe<PartitionDirect::NProto::TDirectBlockGroupHealth> Health;
+
+        TPersistHostHealth(
+            const ui64 directBlockGroupId,
+            const ui32 hostId,
+            const EPersistentHostHealth newHealth)
+            : DirectBlockGroupId(directBlockGroupId)
+            , HostId(hostId)
+            , NewHealth(newHealth)
+        {}
+
+        void Clear()
+        {
+            Revision.Clear();
+            Health.Clear();
         }
     };
 };
