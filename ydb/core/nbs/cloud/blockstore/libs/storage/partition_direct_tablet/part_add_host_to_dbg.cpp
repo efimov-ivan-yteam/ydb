@@ -122,10 +122,10 @@ bool TPartitionActor::PrepareAddHostToDBG(
     TTxPartition::TAddHostToDBG& args)
 {
     Y_UNUSED(ctx);
-    Y_UNUSED(tx);
-    Y_UNUSED(args);
 
-    return true;
+    TPartitionDatabase db(tx.DB);
+
+    return db.ReadHostHealthRevision(args.HostHealthRevision);
 }
 
 void TPartitionActor::ExecuteAddHostToDBG(
@@ -140,6 +140,17 @@ void TPartitionActor::ExecuteAddHostToDBG(
     // together: recovery never sees a half-applied add.
     db.StoreDirectBlockGroupsConnections(args.DirectBlockGroupsConnections);
     db.ClearAddHostInProgress();
+
+    Y_ABORT_UNLESS(args.HostHealthRevision.Defined());
+    *args.HostHealthRevision += 1;
+
+    db.StoreDBGHostHealth(
+        args.DirectBlockGroupId,
+        args.NewHostIndex,
+        EPersistentHostHealth::Online);
+
+    db.StoreHostHealthRevision(*args.HostHealthRevision);
+    db.StoreNeedToNotifyDBSC(true);
 }
 
 void TPartitionActor::CompleteAddHostToDBG(
@@ -191,6 +202,11 @@ void TPartitionActor::CompleteAddHostToDBG(
         });
 
     AddHostInFlight.reset();
+
+    PersistentHostHealth[args.DirectBlockGroupId][args.NewHostIndex] =
+        EPersistentHostHealth::Online;
+    HostHealthRevision = *args.HostHealthRevision;
+    NeedToNotifyDBSC = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

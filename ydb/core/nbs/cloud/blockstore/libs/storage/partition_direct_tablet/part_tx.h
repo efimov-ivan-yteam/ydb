@@ -74,6 +74,9 @@ struct TTxPartition
         TTouchedVChunks TouchedVChunks;
         TMaybe<TAddHostInProgress> AddHostInProgress;
         TMaybe<TRemoveHostInProgress> RemoveHostInProgress;
+        TMaybe<ui64> HostHealthRevision;
+        TMaybe<bool> NeedToNotifyDBSC;
+        TDirectBlockGroupHealthProtos InitialHealth;
 
         void Clear()
         {
@@ -84,6 +87,9 @@ struct TTxPartition
             TouchedVChunks = {};
             AddHostInProgress.Clear();
             RemoveHostInProgress.Clear();
+            HostHealthRevision.Clear();
+            NeedToNotifyDBSC.Clear();
+            InitialHealth.clear();
         }
     };
 
@@ -197,6 +203,10 @@ struct TTxPartition
         const size_t DirectBlockGroupId;
         const THostIndex NewHostIndex;
 
+        // Filled by Prepare.
+        TMaybe<ui64> HostHealthRevision;
+        TDirectBlockGroupHealthProtos Health;
+
         TAddHostToDBG(
             TDirectBlockGroupsConnections directBlockGroupsConnections,
             size_t directBlockGroupId,
@@ -208,7 +218,10 @@ struct TTxPartition
         {}
 
         void Clear()
-        {}
+        {
+            HostHealthRevision.Clear();
+            Health.clear();
+        }
     };
 
     //
@@ -232,6 +245,9 @@ struct TTxPartition
         const size_t DirectBlockGroupId;
         const THostIndex RemoveIndex;
 
+        // Filled by Prepare.
+        TMaybe<ui64> HostHealthRevision;
+
         TCommitRemoveHost(
             TDirectBlockGroupsConnections directBlockGroupsConnections,
             size_t directBlockGroupId,
@@ -243,7 +259,9 @@ struct TTxPartition
         {}
 
         void Clear()
-        {}
+        {
+            HostHealthRevision.Clear();
+        }
     };
 
     //

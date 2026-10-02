@@ -30,6 +30,26 @@ void TPartitionActor::ExecuteStorePartitionIds(
 
     TPartitionDatabase db(tx.DB);
     db.StoreDirectBlockGroupsConnections(args.DirectBlockGroupsConnections);
+
+    for (ui64 dbgId = 0;
+         dbgId <
+         args.DirectBlockGroupsConnections.DirectBlockGroupConnectionsSize();
+         ++dbgId)
+    {
+        TDirectBlockGroupHealthProto health;
+        for (ui64 hostId = 0;
+             hostId < args.DirectBlockGroupsConnections
+                          .GetDirectBlockGroupConnections(dbgId)
+                          .ConnectionsSize();
+             ++hostId)
+        {
+            health.AddHosts()->SetHealth(EPersistentHostHealth::Online);
+        }
+        db.StoreDirectBlockGroupHealth(dbgId, health);
+    }
+
+    db.StoreHostHealthRevision(1);
+    db.StoreNeedToNotifyDBSC(true);
 }
 
 void TPartitionActor::CompleteStorePartitionIds(
