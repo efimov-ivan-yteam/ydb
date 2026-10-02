@@ -119,6 +119,9 @@ struct TTxPartition
         const ::NYdb::NBS::PartitionDirect::NProto::
             TDirectBlockGroupsConnections DirectBlockGroupsConnections;
 
+        // Filled by prepare
+        TDirectBlockGroupHealthProtos DirectBlockGroupHealth;
+
         explicit TStorePartitionIds(
             TDirectBlockGroupsConnections directBlockGroupsConnections)
             : DirectBlockGroupsConnections(
@@ -127,7 +130,7 @@ struct TTxPartition
 
         void Clear()
         {
-            // nothing to do
+            DirectBlockGroupHealth.clear();
         }
     };
 

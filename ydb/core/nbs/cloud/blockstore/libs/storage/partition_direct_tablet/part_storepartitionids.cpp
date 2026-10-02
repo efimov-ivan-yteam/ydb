@@ -9,6 +9,12 @@ using namespace NKikimr::NTabletFlatExecutor;
 
 ////////////////////////////////////////////////////////////////////////////////
 
+namespace {
+constexpr ui64 InitialHostHealthRevision = 1;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 bool TPartitionActor::PrepareStorePartitionIds(
     const TActorContext& ctx,
     TTransactionContext& tx,
@@ -17,6 +23,22 @@ bool TPartitionActor::PrepareStorePartitionIds(
     Y_UNUSED(ctx);
     Y_UNUSED(tx);
     Y_UNUSED(args);
+
+    for (ui64 dbgId = 0;
+         dbgId <
+         args.DirectBlockGroupsConnections.DirectBlockGroupConnectionsSize();
+         ++dbgId)
+    {
+        auto& health = args.DirectBlockGroupHealth[dbgId];
+        for (ui64 hostId = 0;
+             hostId < args.DirectBlockGroupsConnections
+                          .GetDirectBlockGroupConnections(dbgId)
+                          .ConnectionsSize();
+             ++hostId)
+        {
+            health.AddHosts()->SetHealth(EPersistentHostHealth::Online);
+        }
+    }
 
     return true;
 }
@@ -30,6 +52,10 @@ void TPartitionActor::ExecuteStorePartitionIds(
 
     TPartitionDatabase db(tx.DB);
     db.StoreDirectBlockGroupsConnections(args.DirectBlockGroupsConnections);
+
+    for (const auto& [dbgId, health]: args.DirectBlockGroupHealth) {
+        db.StoreDirectBlockGroupHealth(dbgId, health);
+    }
 
     for (ui64 dbgId = 0;
          dbgId <
@@ -45,10 +71,9 @@ void TPartitionActor::ExecuteStorePartitionIds(
         {
             health.AddHosts()->SetHealth(EPersistentHostHealth::Online);
         }
-        db.StoreDirectBlockGroupHealth(dbgId, health);
     }
 
-    db.StoreHostHealthRevision(1);
+    db.StoreHostHealthRevision(InitialHostHealthRevision);
     db.StoreNeedToNotifyDBSC(true);
 }
 
@@ -58,12 +83,16 @@ void TPartitionActor::CompleteStorePartitionIds(
 {
     // No persisted vchunk configs at first allocation: vchunks fall back to
     // TVChunkConfig::Make().
+
+    HostHealthRevision = InitialHostHealthRevision;
+    NeedToNotifyDBSC = true;
+
     Start(
         ctx,
         args.DirectBlockGroupsConnections,
         {},   // vChunkConfigs
-        {}    // dirtyMapStates
-    );
+        {},   // dirtyMapStates
+        args.DirectBlockGroupHealth);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

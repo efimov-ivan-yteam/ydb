@@ -394,7 +394,8 @@ private:
         const NActors::TActorContext& ctx,
         TDirectBlockGroupsConnections directBlockGroupsConnections,
         const TVChunkConfigs& vChunkConfigs,
-        const TDirtyMapStateProtos& dirtyMapStates);
+        const TDirtyMapStateProtos& dirtyMapStates,
+        TDirectBlockGroupHealthProtos directBlockGroupHealth);
 
     BLOCKSTORE_PARTITION_TRANSACTIONS(
         BLOCKSTORE_IMPLEMENT_TRANSACTION,

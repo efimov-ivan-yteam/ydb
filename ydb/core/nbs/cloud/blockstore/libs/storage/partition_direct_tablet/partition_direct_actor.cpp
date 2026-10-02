@@ -474,7 +474,8 @@ void TPartitionActor::Start(
     const NActors::TActorContext& ctx,
     TDirectBlockGroupsConnections directBlockGroupsConnections,
     const TVChunkConfigs& vChunkConfigs,
-    const TDirtyMapStateProtos& dirtyMapStates)
+    const TDirtyMapStateProtos& dirtyMapStates,
+    TDirectBlockGroupHealthProtos directBlockGroupHealth)
 {
     LogTitle.SetDiskId(VolumeConfig.GetDiskId());
     LogTitle.SetGeneration(Executor()->Generation());
@@ -490,6 +491,7 @@ void TPartitionActor::Start(
 
     DirectBlockGroupsConnections = std::move(directBlockGroupsConnections);
     VChunkConfigs = vChunkConfigs;
+    DirectBlockGroupHealth = std::move(directBlockGroupHealth);
 
     FastPathService = CreateFastPathService(vChunkConfigs, dirtyMapStates);
 
