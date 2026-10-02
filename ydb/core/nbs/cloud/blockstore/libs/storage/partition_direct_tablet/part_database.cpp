@@ -411,7 +411,7 @@ bool TPartitionDatabase::ReadAllDirectBlockGroupHealth(
 ////////////////////////////////////////////////////////////////////////////////
 
 bool TPartitionDatabase::ReadDirectBlockGroupHealth(
-    ui64 dbgId,
+    const ui64 dbgId,
     TMaybe<TDirectBlockGroupHealthProto>& out)
 {
     using TTable = TPartitionSchema::DirectBlockGroupHealth;
@@ -432,8 +432,8 @@ bool TPartitionDatabase::ReadDirectBlockGroupHealth(
 ////////////////////////////////////////////////////////////////////////////////
 
 void TPartitionDatabase::StoreDirectBlockGroupHealth(
-    ui64 dbgId,
-    TDirectBlockGroupHealthProto& directBlockGroupHealth)
+    const ui64 dbgId,
+    const TDirectBlockGroupHealthProto& directBlockGroupHealth)
 {
     using TTable = TPartitionSchema::DirectBlockGroupHealth;
 

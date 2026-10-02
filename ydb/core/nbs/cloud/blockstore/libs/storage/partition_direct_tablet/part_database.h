@@ -80,7 +80,7 @@ public:
         TMaybe<TDirectBlockGroupHealthProto>& out);
     void StoreDirectBlockGroupHealth(
         ui64 dbgId,
-        TDirectBlockGroupHealthProto& directBlockGroupHealth);
+        const TDirectBlockGroupHealthProto& directBlockGroupHealth);
 };
 
 }   // namespace NYdb::NBS::NBlockStore::NStorage::NPartitionDirect
