@@ -166,6 +166,7 @@ void TPartitionActor::ExecuteLoadState(
     if (!args.HostHealthRevision.Defined()) {
         // Migrate old partition
         args.HostHealthRevision = 0;
+        db.StoreHostHealthRevision(*args.HostHealthRevision);
     }
 
     for (size_t dbgId = 0;
@@ -180,6 +181,7 @@ void TPartitionActor::ExecuteLoadState(
             for (size_t i = 0; i < dbgConnections->ConnectionsSize(); ++i) {
                 dbgHealth.AddHosts()->SetHealth(EPersistentHostHealth::Online);
             }
+            db.StoreDirectBlockGroupHealth(dbgId, dbgHealth);
         }
 
         const THostMask deadSlots = FindDeadSlots(*dbgConnections);
