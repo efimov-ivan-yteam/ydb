@@ -174,6 +174,14 @@ void TPartitionActor::ExecuteLoadState(
     {
         auto* dbgConnections =
             connections.MutableDirectBlockGroupConnections(dbgId);
+        auto& dbgHealth = args.Health[dbgId];
+        if (dbgHealth.HostsSize() == 0) {
+            // Migrate old partition
+            for (size_t i = 0; i < dbgConnections->ConnectionsSize(); ++i) {
+                dbgHealth.AddHosts()->SetHealth(EPersistentHostHealth::Online);
+            }
+        }
+
         const THostMask deadSlots = FindDeadSlots(*dbgConnections);
         if (deadSlots.Count() == 0) {
             continue;
@@ -194,16 +202,8 @@ void TPartitionActor::ExecuteLoadState(
 
         *dbgConnections = MakeCompactedConnections(*dbgConnections, deadSlots);
 
-        auto& dbgHealth = args.Health[dbgId];
+        dbgHealth = MakeCompactedHealth(dbgHealth, deadSlots);
 
-        if (dbgHealth.HostsSize() == 0) {
-            // Migrate old partition
-            for (size_t i = 0; i < dbgConnections->ConnectionsSize(); ++i) {
-                dbgHealth.AddHosts()->SetHealth(EPersistentHostHealth::Online);
-            }
-        } else {
-            dbgHealth = MakeCompactedHealth(dbgHealth, deadSlots);
-        }
         db.StoreDirectBlockGroupHealth(dbgId, dbgHealth);
 
         args.ConnectionsChanged = true;

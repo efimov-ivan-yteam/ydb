@@ -115,7 +115,7 @@ void TPartitionActor::CompletePersistHostHealth(
         ToString(args.NewHealth).c_str(),
         PrintDbgId(args.DirectBlockGroupId).c_str(),
         PrintHostIndex(args.HostId).c_str(),
-        args.Revision);
+        *args.Revision);
 
     HostHealthRevision = *args.Revision;
     NeedToNotifyDBSC = true;
