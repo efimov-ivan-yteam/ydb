@@ -125,7 +125,8 @@ bool TPartitionActor::PrepareAddHostToDBG(
 
     TPartitionDatabase db(tx.DB);
 
-    return db.ReadHostHealthRevision(args.HostHealthRevision);
+    return db.ReadHostHealthRevision(args.HostHealthRevision) &&
+           db.ReadDirectBlockGroupHealth(args.DirectBlockGroupId, args.Health);
 }
 
 void TPartitionActor::ExecuteAddHostToDBG(
@@ -142,12 +143,20 @@ void TPartitionActor::ExecuteAddHostToDBG(
     db.ClearAddHostInProgress();
 
     Y_ABORT_UNLESS(args.HostHealthRevision.Defined());
+    Y_ABORT_UNLESS(args.Health.Defined());
+
     *args.HostHealthRevision += 1;
 
-    db.StoreDBGHostHealth(
-        args.DirectBlockGroupId,
-        args.NewHostIndex,
-        EPersistentHostHealth::Online);
+    //    if (args.NewHostIndex >= args.Health->HostsSize()) {
+    //     args.Health->AddHosts()->SetHealth(EPersistentHostHealth::Online);
+    // } else {
+    //     args.Health->MutableHosts(args.NewHostIndex)
+    //         ->SetHealth(EPersistentHostHealth::Online);
+    // }
+    Y_ABORT_UNLESS(args.NewHostIndex == args.Health->HostsSize());
+
+    args.Health->AddHosts()->SetHealth(EPersistentHostHealth::Online);
+    db.StoreDirectBlockGroupHealth(args.DirectBlockGroupId, *args.Health);
 
     db.StoreHostHealthRevision(*args.HostHealthRevision);
     db.StoreNeedToNotifyDBSC(true);
@@ -203,8 +212,7 @@ void TPartitionActor::CompleteAddHostToDBG(
 
     AddHostInFlight.reset();
 
-    PersistentHostHealth[args.DirectBlockGroupId][args.NewHostIndex] =
-        EPersistentHostHealth::Online;
+    DirectBlockGroupHealth[args.DirectBlockGroupId] = *args.Health;
     HostHealthRevision = *args.HostHealthRevision;
     NeedToNotifyDBSC = true;
 }

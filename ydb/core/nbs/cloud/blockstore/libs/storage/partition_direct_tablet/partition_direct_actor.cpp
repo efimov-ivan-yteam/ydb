@@ -375,8 +375,10 @@ TFastPathServicePtr TPartitionActor::CreateFastPathService(
             persistentBufferDDiskIds.push_back(NBsController::TDDiskId(
                 connection.GetPersistentBufferDDiskId()));
         }
-        // Temporarily preserving original behavior
-        TVector<EHostHealth> hostHealths(ddiskIds.size(), EHostHealth::Online);
+        TVector<EHostHealth> hostHealths;
+        for (const auto& health: DirectBlockGroupHealth[dbgIndex].GetHosts()) {
+            hostHealths.push_back(HostHealthFromPersistent(health.GetHealth()));
+        }
 
         const bool enableChecksums =
             nbsService->StorageConfig->GetEnableChecksums();

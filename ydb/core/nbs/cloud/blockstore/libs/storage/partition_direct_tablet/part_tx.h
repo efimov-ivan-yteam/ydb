@@ -76,7 +76,10 @@ struct TTxPartition
         TMaybe<TRemoveHostInProgress> RemoveHostInProgress;
         TMaybe<ui64> HostHealthRevision;
         TMaybe<bool> NeedToNotifyDBSC;
-        TDirectBlockGroupHealthProtos InitialHealth;
+        TDirectBlockGroupHealthProtos Health;
+
+        // Filled by Execute
+        bool ConnectionsChanged = false;
 
         void Clear()
         {
@@ -89,7 +92,9 @@ struct TTxPartition
             RemoveHostInProgress.Clear();
             HostHealthRevision.Clear();
             NeedToNotifyDBSC.Clear();
-            InitialHealth.clear();
+            Health.clear();
+
+            ConnectionsChanged = false;
         }
     };
 
@@ -208,7 +213,7 @@ struct TTxPartition
 
         // Filled by Prepare.
         TMaybe<ui64> HostHealthRevision;
-        TDirectBlockGroupHealthProtos Health;
+        TMaybe<TDirectBlockGroupHealthProto> Health;
 
         TAddHostToDBG(
             TDirectBlockGroupsConnections directBlockGroupsConnections,
@@ -223,7 +228,7 @@ struct TTxPartition
         void Clear()
         {
             HostHealthRevision.Clear();
-            Health.clear();
+            Health.Clear();
         }
     };
 
@@ -250,6 +255,7 @@ struct TTxPartition
 
         // Filled by Prepare.
         TMaybe<ui64> HostHealthRevision;
+        TMaybe<TDirectBlockGroupHealthProto> Health;
 
         TCommitRemoveHost(
             TDirectBlockGroupsConnections directBlockGroupsConnections,

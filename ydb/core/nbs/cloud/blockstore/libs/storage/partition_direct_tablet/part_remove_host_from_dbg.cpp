@@ -117,10 +117,11 @@ bool TPartitionActor::PrepareCommitRemoveHost(
     TTxPartition::TCommitRemoveHost& args)
 {
     Y_UNUSED(ctx);
-    Y_UNUSED(tx);
-    Y_UNUSED(args);
 
-    return true;
+    TPartitionDatabase db(tx.DB);
+
+    return db.ReadHostHealthRevision(args.HostHealthRevision) &&
+           db.ReadDirectBlockGroupHealth(args.DirectBlockGroupId, args.Health);
 }
 
 void TPartitionActor::ExecuteCommitRemoveHost(
@@ -133,6 +134,17 @@ void TPartitionActor::ExecuteCommitRemoveHost(
     TPartitionDatabase db(tx.DB);
     db.StoreDirectBlockGroupsConnections(args.DirectBlockGroupsConnections);
     db.ClearRemoveHostInProgress();
+
+    Y_ABORT_UNLESS(args.HostHealthRevision.Defined());
+    Y_ABORT_UNLESS(args.Health.Defined());
+
+    *args.HostHealthRevision += 1;
+    args.Health->MutableHosts(args.RemoveIndex)
+        ->SetHealth(EPersistentHostHealth::Removed);
+
+    db.StoreHostHealthRevision(*args.HostHealthRevision);
+    db.StoreDirectBlockGroupHealth(args.DirectBlockGroupId, *args.Health);
+    db.StoreNeedToNotifyDBSC(true);
 }
 
 void TPartitionActor::CompleteCommitRemoveHost(
@@ -167,6 +179,9 @@ void TPartitionActor::CompleteCommitRemoveHost(
         });
 
     RemoveHostInFlight.reset();
+    HostHealthRevision = *args.HostHealthRevision;
+    DirectBlockGroupHealth[args.DirectBlockGroupId] = *args.Health;
+    NeedToNotifyDBSC = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

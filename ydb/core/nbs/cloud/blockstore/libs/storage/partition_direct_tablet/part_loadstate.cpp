@@ -99,6 +99,21 @@ TDirectBlockGroupConnections MakeCompactedConnections(
     return result;
 }
 
+// DBG health without the dead slots.
+TDirectBlockGroupHealthProto MakeCompactedHealth(
+    const TDirectBlockGroupHealthProto& health,
+    THostMask deadSlots)
+{
+    TDirectBlockGroupHealthProto result = health;
+    result.ClearHosts();
+    for (size_t slot = 0; slot < health.HostsSize(); ++slot) {
+        if (!deadSlots.Get(static_cast<THostIndex>(slot))) {
+            *result.AddHosts() = health.GetHosts(slot);
+        }
+    }
+    return result;
+}
+
 }   // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -120,7 +135,8 @@ bool TPartitionActor::PrepareLoadState(
         db.ReadAllTouchedVChunks(args.TouchedVChunks),
         db.ReadAddHostInProgress(args.AddHostInProgress),
         db.ReadRemoveHostInProgress(args.RemoveHostInProgress),
-    };
+        db.ReadHostHealthRevision(args.HostHealthRevision),
+        db.ReadAllDirectBlockGroupHealth(args.Health)};
 
     bool ready = std::accumulate(
         results.begin(),
@@ -146,7 +162,11 @@ void TPartitionActor::ExecuteLoadState(
     // numbering may shift, and no vchunk exists yet to notice.
     TPartitionDatabase db(tx.DB);
     auto& connections = *args.DirectBlockGroupsConnections;
-    bool connectionsChanged = false;
+
+    if (!args.HostHealthRevision.Defined()) {
+        // Migrate old partition
+        args.HostHealthRevision = 0;
+    }
 
     for (size_t dbgId = 0;
          dbgId < connections.DirectBlockGroupConnectionsSize();
@@ -173,11 +193,26 @@ void TPartitionActor::ExecuteLoadState(
         }
 
         *dbgConnections = MakeCompactedConnections(*dbgConnections, deadSlots);
-        connectionsChanged = true;
+
+        auto& dbgHealth = args.Health[dbgId];
+
+        if (dbgHealth.HostsSize() == 0) {
+            // Migrate old partition
+            for (size_t i = 0; i < dbgConnections->ConnectionsSize(); ++i) {
+                dbgHealth.AddHosts()->SetHealth(EPersistentHostHealth::Online);
+            }
+        } else {
+            dbgHealth = MakeCompactedHealth(dbgHealth, deadSlots);
+        }
+        db.StoreDirectBlockGroupHealth(dbgId, dbgHealth);
+
+        args.ConnectionsChanged = true;
     }
 
-    if (connectionsChanged) {
+    if (args.ConnectionsChanged) {
         db.StoreDirectBlockGroupsConnections(connections);
+        db.StoreHostHealthRevision(++*args.HostHealthRevision);
+        db.StoreNeedToNotifyDBSC(true);
     }
 }
 
@@ -185,6 +220,11 @@ void TPartitionActor::CompleteLoadState(
     const TActorContext& ctx,
     TTxPartition::TLoadState& args)
 {
+    if (args.ConnectionsChanged) {
+        NeedToNotifyDBSC = true;
+        HostHealthRevision = *args.HostHealthRevision;
+    }
+
     if (args.VolumeConfig.Defined()) {
         VolumeConfig = *args.VolumeConfig;
 
@@ -195,7 +235,8 @@ void TPartitionActor::CompleteLoadState(
                 ctx,
                 std::move(*args.DirectBlockGroupsConnections),
                 args.VChunkConfigs,
-                args.DirtyMapStates);
+                args.DirtyMapStates,
+                std::move(args.Health));
 
             // An add-host was in flight at the last restart: hold the single
             // in-flight slot and replay the BSController request once the fast
